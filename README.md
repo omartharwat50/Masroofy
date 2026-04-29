@@ -123,11 +123,7 @@ The full requirements are documented in the [SRS (Software Requirements Specific
 - US#5 – Daily Rollover Management
 - US#6 – Budget Threshold Notification
 - US#7 – Transaction History Review
-- US#8 – Edit or Delete Transaction
-- US#9 – Filter Transaction History
-- US#10 – Offline Local Data Persistence
-- US#11 – Cycle Reset and Data Clearance
-- US#12 – Local Privacy Lock
+
 
 ---
 
