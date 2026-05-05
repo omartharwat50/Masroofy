@@ -40,5 +40,18 @@ public class DatabaseManager {
         sttm.close();
 
     }
+    public ResultSet getTransactionsOrderedByCategory() throws Exception {
+        Connection conn=connect();
+        Statement sttm = conn.createStatement();
+        ResultSet rs = sttm.executeQuery("""
+             SELECT Transactions.id, Transactions.amount, Transactions.date,
+            Category.id AS category_id,
+           Category.name AS category_name
+             FROM Transactions
+             JOIN Category ON Transactions.category_id = Category.id
+            ORDER BY Category.name
+        """);
+        return rs;
+    }
 
 }
