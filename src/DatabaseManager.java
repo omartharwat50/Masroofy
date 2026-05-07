@@ -1,4 +1,5 @@
 import java.sql.*;
+import java.time.LocalDate;
 
 public class DatabaseManager {
     private static final String URL = "jdbc:mysql://tramway.proxy.rlwy.net:58901/railway";
@@ -53,5 +54,55 @@ public class DatabaseManager {
         """);
         return rs;
     }
+    public double getTotalBudgetForCycle(Cycle c) throws Exception {
+        Connection conn = connect();
+        Statement sttm = conn.createStatement();
+        ResultSet rs = sttm.executeQuery("SELECT totalBudget FROM Cycle WHERE id = " + c.getId());
+
+        double totalBudget = 0;
+        if (rs.next()) {
+            totalBudget = rs.getDouble("totalBudget");
+        }
+
+        rs.close();
+        sttm.close();
+        conn.close();
+
+        return totalBudget;
+    }
+    public ResultSet getTransactionsForCycle(Cycle c) throws Exception {
+        Connection conn = connect();
+        Statement sttm = conn.createStatement();
+        ResultSet rs = sttm.executeQuery(
+                "SELECT * FROM Transactions WHERE cycle_id = " + c.getId()
+        );
+        return rs;
+    }
+    public Cycle getCurrentCycle() throws Exception {
+        Connection conn = connect();
+        Statement sttm = conn.createStatement();
+        ResultSet rs = sttm.executeQuery(
+                "SELECT * FROM Cycle WHERE active = 1"
+        );
+
+        Cycle cycle = null;
+        if (rs.next()) {
+            int id = rs.getInt("id");
+            LocalDate startDate = rs.getDate("startDate").toLocalDate();
+            LocalDate endDate = rs.getDate("endDate").toLocalDate();
+            boolean active = rs.getBoolean("active");
+            double totalBudget = rs.getDouble("totalBudget");
+
+            cycle = new Cycle(id, startDate, endDate, active, totalBudget);
+        }
+
+        rs.close();
+        sttm.close();
+        conn.close();
+
+        return cycle;
+    }
+
+
 
 }
