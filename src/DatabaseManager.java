@@ -124,6 +124,23 @@ public class DatabaseManager {
 
         stmt.close();
         conn.close();
-}
+    }
 
+    public void insertTransaction(int cycleId, int categoryId, double amount) throws Exception {
+    Connection conn = connect();
+
+String sql = "INSERT INTO Transactions " +"(amount, date, cycle_id, category_id) " +
+        "VALUES (?, NOW(), ?, ?)";
+
+PreparedStatement stmt = conn.prepareStatement(sql);
+
+stmt.setDouble(1, amount);
+stmt.setInt(2, cycleId);
+stmt.setInt(3, categoryId);
+
+stmt.executeUpdate();
+
+stmt.close();
+conn.close();
+    }
 }

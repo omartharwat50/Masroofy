@@ -40,4 +40,8 @@ public class ExpenseService {
 
         return categories;
     }
+    public boolean validateExpense(double amount) {
+
+    return amount > 0;
+}
 }
