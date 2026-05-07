@@ -8,6 +8,9 @@ public class ExpenseUI {
         categoryArrayList = expenseController.getTransactionsByCat();
     }
 
+    public void addExpenseUI() throws Exception {}
+    
+
     public String displayTransactions() {
         StringBuilder sb = new StringBuilder();
 
