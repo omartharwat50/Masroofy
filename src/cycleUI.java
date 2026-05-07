@@ -1,33 +1,35 @@
 import java.time.LocalDate;
 import java.util.Scanner;
- 
-  public class cycleUI {
-    private cycleController cC=new cycleController();
-      public double logDailyLimit() throws Exception{
-        return   cC.logDailyLimit();
-      }
-  }
 
-  public void setupCycle() throws Exception {
+public class cycleUI {
 
-    Scanner sc = new Scanner(System.in);
+    private cycleController cC =
+            new cycleController();
 
-    System.out.print("Budget: ");
-    double budget = sc.nextDouble();
+    public double logDailyLimit()
+            throws Exception {
 
-    sc.nextLine();
+        return cC.logDailyLimit();
+    }
 
-    System.out.print("Start Date (2026-05-07): ");
-    LocalDate start =
-            LocalDate.parse(sc.nextLine());
+    public void setupCycle()
+            throws Exception {
 
-    System.out.print("End Date (2026-06-07): ");
-    LocalDate end =
-            LocalDate.parse(sc.nextLine());
+        Scanner sc = new Scanner(System.in);
 
-    cC.createCycle(
-            budget,
-            start,
-            end
-    );
+        System.out.print("Budget: ");
+        double budget = sc.nextDouble();
+
+        sc.nextLine();
+
+        System.out.print("Start Date (2026-05-07): ");
+
+        LocalDate start = LocalDate.parse(sc.nextLine());
+
+        System.out.print("End Date (2026-06-07): ");
+
+        LocalDate end = LocalDate.parse(sc.nextLine());
+
+        cC.createCycle(budget,start,end);
+    }
 }
