@@ -103,6 +103,27 @@ public class DatabaseManager {
         return cycle;
     }
 
+    public void insertCycle(Cycle c) throws Exception {
 
+        Connection conn = connect();
+
+        String sql =
+                "INSERT INTO Cycle " +
+                "(startDate, endDate, active, totalBudget) " +
+                "VALUES (?, ?, ?, ?)";
+
+        PreparedStatement stmt =
+                conn.prepareStatement(sql);
+
+        stmt.setDate(1, Date.valueOf(c.getStartDate()));
+        stmt.setDate(2, Date.valueOf(c.getEndDate()));
+        stmt.setBoolean(3, true);
+        stmt.setDouble(4, c.getTotalBudget());
+
+        stmt.executeUpdate();
+
+        stmt.close();
+        conn.close();
+}
 
 }

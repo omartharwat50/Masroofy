@@ -27,4 +27,15 @@ public class cycleService {
         double remainingBudget = calculateRemainingBudget(c);
         return remainingBudget / daysLeft;
     }
+
+    public boolean validateBudget(double budget) {
+
+    return budget > 0;
+    }
+
+    public boolean validateDates(LocalDate start,
+                             LocalDate end) {
+
+    return end.isAfter(start);
+}
 }
