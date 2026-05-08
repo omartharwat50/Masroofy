@@ -1,4 +1,3 @@
-package models;
 import java.util.List;
 public interface ICategoryRepository {
     void insertCategory(String name) throws Exception;

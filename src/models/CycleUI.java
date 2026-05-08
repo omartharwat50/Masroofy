@@ -1,75 +1,83 @@
-package models;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import java.time.LocalDate;
-import java.util.Scanner;
+
 public class CycleUI {
+
     private final CycleController cycleController;
-    
+
     public CycleUI(CycleController cycleController) {
         this.cycleController = cycleController;
     }
-    
+
     public void displayDailyLimit() throws Exception {
         double dailyLimit = cycleController.logDailyLimit();
-        System.out.println("💡 Your daily spending limit: $" + String.format("%.2f", dailyLimit));
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Daily Spending Limit");
+        alert.setHeaderText("💡 Daily Limit");
+        alert.setContentText("You can spend up to:  $" + String.format("%.2f", dailyLimit) + " per day");
+        alert.showAndWait();
     }
-    
-    public void setupCycle() throws Exception {
-        Scanner scanner = new Scanner(System.in);
-        
-        // Handle budget input with validation
-        double budget = 0;
-        boolean validBudget = false;
-        
-        while (!validBudget) {
+
+    public void showSetupCycleDialog() {
+        TextField budgetField = new TextField();
+        budgetField.setPromptText("Enter total budget");
+
+        DatePicker startDatePicker = new DatePicker();
+        DatePicker endDatePicker = new DatePicker();
+
+        Button submitBtn = new Button("Create Budget Cycle");
+        Label statusLabel = new Label();
+
+        submitBtn.setOnAction(e -> {
             try {
-                System.out.print("Enter total budget for the cycle: $");
-                budget = scanner.nextDouble();
-                scanner.nextLine(); // consume newline
-                
+                double budget = Double.parseDouble(budgetField.getText().trim());
+                LocalDate start = startDatePicker.getValue();
+                LocalDate end = endDatePicker.getValue();
+
                 if (budget <= 0) {
-                    System.out.println("❌ Budget must be a positive number. Please try again.");
-                } else {
-                    validBudget = true;
+                    statusLabel.setText("❌ Budget must be positive");
+                    return;
                 }
-            } catch (Exception e) {
-                System.out.println("❌ Invalid input! Please enter a valid number (e.g., 5000).");
-                scanner.nextLine(); // clear the invalid input
-            }
-        }
-        
-        // Handle start date input
-        LocalDate startDate = null;
-        boolean validStartDate = false;
-        
-        while (!validStartDate) {
-            try {
-                System.out.print("Enter start date (YYYY-MM-DD): ");
-                startDate = LocalDate.parse(scanner.nextLine());
-                validStartDate = true;
-            } catch (Exception e) {
-                System.out.println("❌ Invalid date format! Please use YYYY-MM-DD (e.g., 2026-06-10).");
-            }
-        }
-        
-        // Handle end date input
-        LocalDate endDate = null;
-        boolean validEndDate = false;
-        
-        while (!validEndDate) {
-            try {
-                System.out.print("Enter end date (YYYY-MM-DD): ");
-                endDate = LocalDate.parse(scanner.nextLine());
-                
-                if (endDate.isAfter(startDate)) {
-                    validEndDate = true;
-                } else {
-                    System.out.println("❌ End date must be after start date. Please try again.");
+                if (start == null || end == null) {
+                    statusLabel.setText("❌ Please select dates");
+                    return;
                 }
-            } catch (Exception e) {
-                System.out.println("❌ Invalid date format! Please use YYYY-MM-DD (e.g., 2026-06-20).");
+                if (!end.isAfter(start)) {
+                    statusLabel.setText("❌ End date must be after start date");
+                    return;
+                }
+
+                cycleController.createCycle(budget, start, end);
+                statusLabel.setText("✅ Cycle created successfully!");
+                statusLabel.setStyle("-fx-text-fill: green;");
+
+            } catch (Exception ex) {
+                statusLabel.setText("❌ " + ex.getMessage());
             }
-        }
-        
-        cycleController.createCycle(budget, startDate, endDate);
+        });
+
+        VBox layout = new VBox(12);
+        layout.setAlignment(Pos.CENTER);
+        layout.setStyle("-fx-padding: 20;");
+
+        layout.getChildren().addAll(
+                new Label("💰 Create New Budget Cycle"),
+                new Label("Total Budget:"), budgetField,
+                new Label("Start Date:"), startDatePicker,
+                new Label("End Date:"), endDatePicker,
+                submitBtn, statusLabel
+        );
+
+        Stage dialog = new Stage();
+        dialog.setTitle("New Budget Cycle");
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setScene(new Scene(layout, 400, 380));
+        dialog.showAndWait();
     }
 }

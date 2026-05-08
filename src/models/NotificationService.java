@@ -1,4 +1,3 @@
-package models;
 public class NotificationService implements INotificationService {
     private static final double THRESHOLD_PERCENTAGE = 80.0;
     
