@@ -1,5 +1,5 @@
+package models;
 import java.time.LocalDate;
-
 public class CycleController {
     private final CycleService cycleService;
     private final ICycleRepository cycleRepository;
@@ -8,7 +8,7 @@ public class CycleController {
         this.cycleService = cycleService;
         this.cycleRepository = cycleRepository;
     }
-    
+
     public double logDailyLimit() throws Exception {
         Cycle currentCycle = cycleRepository.getCurrentCycle();
         if (currentCycle == null) {

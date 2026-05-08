@@ -1,5 +1,5 @@
+package models;
 import java.util.*;
-
 public class ExpenseUI {
     private final ExpenseController expenseController;
     private List<Category> categorizedTransactions = new ArrayList<>();

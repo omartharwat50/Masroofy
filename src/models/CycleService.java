@@ -1,5 +1,5 @@
+package models;
 import java.time.LocalDate;
-
 public class CycleService {
     private final ICycleRepository cycleRepository;
     

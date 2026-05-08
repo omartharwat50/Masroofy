@@ -1,5 +1,5 @@
+package models;
 import java.time.LocalDate;
-
 public class Cycle {
     private int id;
     private LocalDate startDate, endDate;

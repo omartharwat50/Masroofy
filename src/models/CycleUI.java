@@ -1,6 +1,6 @@
+package models;
 import java.time.LocalDate;
 import java.util.Scanner;
-
 public class CycleUI {
     private final CycleController cycleController;
     
