@@ -1,66 +1,45 @@
-import java.util.ArrayList;
+import java.util.*;
 
 public class ExpenseController {
-
-    ExpenseService expenseService = new ExpenseService();
-    DatabaseManager db = new DatabaseManager();
-
-    // existing functionality
-    public ArrayList<Category> getTransactionsByCat() throws Exception {
-
-        ArrayList<Category> categories =
-                expenseService.getTransactionsCategorized();
-
-        return categories;
+    private final ExpenseService expenseService;
+    private final ICycleRepository cycleRepository;
+    private final ICategoryRepository categoryRepository;
+    
+    public ExpenseController(ExpenseService expenseService,
+                             ICycleRepository cycleRepository,
+                             ICategoryRepository categoryRepository) {
+        this.expenseService = expenseService;
+        this.cycleRepository = cycleRepository;
+        this.categoryRepository = categoryRepository;
     }
-
-    // Add new expense
-    public void addExpense(double amount,
-                           int categoryId)
-                           throws Exception {
-
-        // validate amount
-        if (!expenseService.validateExpense(amount)) {
-
-            System.out.println(
-                    "Invalid Amount"
-            );
-
+    
+    public List<Category> getTransactionsByCategory() throws Exception {
+        return expenseService.getTransactionsCategorized();
+    }
+    
+    public void addExpense(double amount, int categoryId) throws Exception {
+        Category category = categoryRepository.getCategoryById(categoryId);
+        if (category == null) {
+            System.out.println("Invalid category ID");
             return;
         }
-
-        // get active cycle
-        Cycle c = db.getCurrentCycle();
-
-        if (c == null) {
-
-            System.out.println(
-                    "No Active Cycle Found"
-            );
-
+        
+        Cycle currentCycle = cycleRepository.getCurrentCycle();
+        if (currentCycle == null) {
+            System.out.println("No active cycle found. Please create a cycle first.");
             return;
         }
-
-        // save transaction
-        db.insertTransaction(
-                c.getId(),
-                categoryId,
-                amount
-        );
-
-        // recalculate daily limit
-        cycleService cs = new cycleService();
-
-        double newLimit =
-                cs.calculateDailyRemaining(c);
-
-        System.out.println(
-                "Expense Added Successfully"
-        );
-
-        System.out.println(
-                "Updated Daily Limit: "
-                        + newLimit
-        );
+        
+        boolean success = expenseService.saveExpense(amount, categoryId, currentCycle.getId());
+        
+        if (success) {
+            System.out.println("✅ Expense added successfully!");
+            System.out.println("   Amount: $" + amount);
+            System.out.println("   Category: " + category.getName());
+            
+            CycleService cycleService = new CycleService(cycleRepository);
+            double dailyRemaining = cycleService.calculateDailyRemaining(currentCycle);
+            System.out.println("   Remaining daily budget: $" + String.format("%.2f", dailyRemaining));
+        }
     }
 }

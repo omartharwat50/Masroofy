@@ -1,146 +1,133 @@
-import java.sql.*;
 import java.time.LocalDate;
+import java.util.*;
 
-public class DatabaseManager {
-    private static final String URL = "jdbc:mysql://tramway.proxy.rlwy.net:58901/railway";
-    private static final String USER = "root";
-    private static final String PASSWORD = "JlqhhpkJiFQbyXlZOvywevZWgEsLHVXi";
-
-    public static Connection connect() {
-        Connection conn = null;
-        try {
-            conn = DriverManager.getConnection(URL, USER, PASSWORD);
-            System.out.println("Connected to MySQL!");
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return conn;
+public class DatabaseManager implements ITransactionRepository, ICycleRepository, ICategoryRepository {
+    
+    // In-memory storage (no database driver needed)
+    private static List<Cycle> cycles = new ArrayList<>();
+    private static List<Transaction> transactions = new ArrayList<>();
+    private static List<Category> categories = new ArrayList<>();
+    private static int nextCycleId = 1;
+    private static int nextTransactionId = 1;
+    private static int nextCategoryId = 6; // Start after default categories
+    
+    // Initialize default categories
+    static {
+        categories.add(new Category("Food", 1));
+        categories.add(new Category("Transport", 2));
+        categories.add(new Category("Entertainment", 3));
+        categories.add(new Category("Shopping", 4));
+        categories.add(new Category("Utilities", 5));
     }
-
-
-
-    public void insertCategory(String s) throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        sttm.execute("INSERT INTO Category (name) VALUES ('" + s + "')");
-        conn.close();
-        sttm.close();
-
-    }
-    public void viewCategories() throws Exception{
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("SELECT * FROM Category");
-
-        while (rs.next()) {
-            System.out.println(rs.getInt("id") + " | " + rs.getString("name"));
-        }
-
-        rs.close();
-        conn.close();
-        sttm.close();
-
-    }
-    public ResultSet getTransactionsOrderedByCategory() throws Exception {
-        Connection conn=connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("""
-             SELECT Transactions.id, Transactions.amount, Transactions.date,
-            Category.id AS category_id,
-           Category.name AS category_name
-             FROM Transactions
-             JOIN Category ON Transactions.category_id = Category.id
-            ORDER BY Category.name
-        """);
-        return rs;
-    }
-    public double getTotalBudgetForCycle(Cycle c) throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("SELECT totalBudget FROM Cycle WHERE id = " + c.getId());
-
-        double totalBudget = 0;
-        if (rs.next()) {
-            totalBudget = rs.getDouble("totalBudget");
-        }
-
-        rs.close();
-        sttm.close();
-        conn.close();
-
-        return totalBudget;
-    }
-    public ResultSet getTransactionsForCycle(Cycle c) throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery(
-                "SELECT * FROM Transactions WHERE cycle_id = " + c.getId()
-        );
-        return rs;
-    }
+    
+    // ===== ICycleRepository Implementation =====
+    @Override
     public Cycle getCurrentCycle() throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery(
-                "SELECT * FROM Cycle WHERE active = 1"
-        );
-
-        Cycle cycle = null;
-        if (rs.next()) {
-            int id = rs.getInt("id");
-            LocalDate startDate = rs.getDate("startDate").toLocalDate();
-            LocalDate endDate = rs.getDate("endDate").toLocalDate();
-            boolean active = rs.getBoolean("active");
-            double totalBudget = rs.getDouble("totalBudget");
-
-            cycle = new Cycle(id, startDate, endDate, active, totalBudget);
+        for (Cycle cycle : cycles) {
+            if (cycle.isActive()) {
+                return cycle;
+            }
         }
-
-        rs.close();
-        sttm.close();
-        conn.close();
-
-        return cycle;
+        return null;
     }
-
-    public void insertCycle(Cycle c) throws Exception {
-
-        Connection conn = connect();
-
-        String sql =
-                "INSERT INTO Cycle " +
-                "(startDate, endDate, active, totalBudget) " +
-                "VALUES (?, ?, ?, ?)";
-
-        PreparedStatement stmt =
-                conn.prepareStatement(sql);
-
-        stmt.setDate(1, Date.valueOf(c.getStartDate()));
-        stmt.setDate(2, Date.valueOf(c.getEndDate()));
-        stmt.setBoolean(3, true);
-        stmt.setDouble(4, c.getTotalBudget());
-
-        stmt.executeUpdate();
-
-        stmt.close();
-        conn.close();
+    
+    @Override
+    public void insertCycle(Cycle cycle) throws Exception {
+        // First, deactivate any existing active cycle
+        for (Cycle c : cycles) {
+            if (c.isActive()) {
+                // Create new cycle object with active=false (immutable workaround)
+                cycles.remove(c);
+                Cycle deactivated = new Cycle(c.getId(), c.getStartDate(), c.getEndDate(), false, c.getTotalBudget());
+                cycles.add(deactivated);
+                break;
+            }
+        }
+        
+        // Create new cycle with new ID
+        Cycle newCycle = new Cycle(nextCycleId++, cycle.getStartDate(), cycle.getEndDate(), true, cycle.getTotalBudget());
+        cycles.add(newCycle);
+        System.out.println("Cycle inserted successfully!");
     }
-
-    public void insertTransaction(int cycleId, int categoryId, double amount) throws Exception {
-    Connection conn = connect();
-
-String sql = "INSERT INTO Transactions " +"(amount, date, cycle_id, category_id) " +
-        "VALUES (?, NOW(), ?, ?)";
-
-PreparedStatement stmt = conn.prepareStatement(sql);
-
-stmt.setDouble(1, amount);
-stmt.setInt(2, cycleId);
-stmt.setInt(3, categoryId);
-
-stmt.executeUpdate();
-
-stmt.close();
-conn.close();
+    
+    @Override
+    public double getTotalBudgetForCycle(Cycle cycle) throws Exception {
+        return cycle.getTotalBudget();
+    }
+    
+    // ===== ITransactionRepository Implementation =====
+    @Override
+    public void saveTransaction(int cycleId, int categoryId, double amount) throws Exception {
+        Transaction transaction = new Transaction(nextTransactionId++, amount, LocalDate.now().toString());
+        transactions.add(transaction);
+        
+        // Also add to category's transaction list
+        for (Category cat : categories) {
+            if (cat.getId() == categoryId) {
+                cat.addTransaction(transaction);
+                break;
+            }
+        }
+        System.out.println("Transaction saved: $" + amount);
+    }
+    
+    @Override
+    public List<Transaction> getTransactionsByCategory(int categoryId) throws Exception {
+        List<Transaction> categoryTransactions = new ArrayList<>();
+        
+        for (Category cat : categories) {
+            if (cat.getId() == categoryId) {
+                ArrayList<Transaction> catTransactions = cat.getTransactions();
+                for (Transaction t : catTransactions) {
+                    categoryTransactions.add(t);
+                }
+                break;
+            }
+        }
+        return categoryTransactions;
+    }
+    
+    @Override
+    public List<Transaction> getAllTransactions() throws Exception {
+        return new ArrayList<>(transactions);
+    }
+    
+    // ===== ICategoryRepository Implementation =====
+    @Override
+    public void insertCategory(String name) throws Exception {
+        Category newCategory = new Category(name, nextCategoryId++);
+        categories.add(newCategory);
+        System.out.println("Category added: " + name);
+    }
+    
+    @Override
+    public List<Category> getAllCategories() throws Exception {
+        return new ArrayList<>(categories);
+    }
+    
+    @Override
+    public Category getCategoryById(int id) throws Exception {
+        for (Category cat : categories) {
+            if (cat.getId() == id) {
+                return cat;
+            }
+        }
+        return null;
+    }
+    
+    // Helper method to view all data (for debugging)
+    public void displayAllCycles() {
+        System.out.println("\n--- All Cycles ---");
+        for (Cycle c : cycles) {
+            System.out.println("Cycle " + c.getId() + ": " + c.getStartDate() + " to " + c.getEndDate() + 
+                               ", Active: " + c.isActive() + ", Budget: $" + c.getTotalBudget());
+        }
+    }
+    
+    public void displayAllTransactions() {
+        System.out.println("\n--- All Transactions ---");
+        for (Transaction t : transactions) {
+            System.out.println("Transaction " + t.getId() + ": $" + t.getAmount() + " on " + t.getDate());
+        }
     }
 }
