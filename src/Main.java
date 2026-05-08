@@ -1,9 +1,4 @@
-
-void main() throws Exception {
-
-        DatabaseManager db= new DatabaseManager();
-        db.viewCategories();
-
-        
-
+public class Main {
+    public static void main(String[] args) {
+    }
 }
