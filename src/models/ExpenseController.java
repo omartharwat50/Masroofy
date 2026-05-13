@@ -41,4 +41,12 @@ public class ExpenseController {
             System.out.println("   Remaining daily budget: $" + String.format("%.2f", dailyRemaining));
         }
     }
+    // أضف هذه الدالة في نهاية ExpenseController.java
+public double getTotalSpentThisCycle() throws Exception {
+    List<Category> categories = getTransactionsByCategory();
+    return categories.stream()
+            .flatMap(c -> c.getTransactions().stream())
+            .mapToDouble(Transaction::getAmount)
+            .sum();
+}
 }

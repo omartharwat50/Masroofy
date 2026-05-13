@@ -32,9 +32,14 @@ public class CycleController {
         
         Cycle cycle = new Cycle(0, start, end, true, budget);
         cycleRepository.insertCycle(cycle);
+
+        
         
         double dailyLimit = cycleService.calculateDailyLimit(cycle);
         System.out.println("Cycle Created Successfully!");
         System.out.println("Daily Limit: $" + String.format("%.2f", dailyLimit));
     }
+public Cycle getCurrentCycle() throws Exception {
+    return cycleRepository.getCurrentCycle();
+}
 }

@@ -1,217 +1,214 @@
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import java.sql.*;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DatabaseManager implements ITransactionRepository, ICycleRepository, ICategoryRepository {
 
-    private static final String URL = "jdbc:mysql://tramway.proxy.rlwy.net:58901/railway";
-    private static final String USER = "root";
-    private static final String PASSWORD = "JlqhhpkJiFQbyXlZOvywevZWgEsLHVXi";
+    private static final HikariDataSource dataSource;
 
-    public Connection connect() {
-        Connection conn = null;
-        try {
-            conn = DriverManager.getConnection(URL, USER, PASSWORD);
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return conn;
+    static {
+        HikariConfig config = new HikariConfig();
+        
+        config.setJdbcUrl("jdbc:mysql://tramway.proxy.rlwy.net:58901/railway");
+        config.setUsername("root");
+        config.setPassword("JlqhhpkJiFQbyXlZOvywevZWgEsLHVXi");
+
+        // إعدادات الأداء المهمة
+        config.setMaximumPoolSize(10);           // عدد الاتصالات الأقصى
+        config.setMinimumIdle(2);                // عدد الاتصالات الجاهزة دايماً
+        config.setIdleTimeout(300000);           // 5 دقائق
+        config.setMaxLifetime(600000);           // 10 دقائق
+        config.setConnectionTimeout(20000);      // 20 ثانية
+        
+        // تحسينات MySQL
+        config.addDataSourceProperty("cachePrepStmts", "true");
+        config.addDataSourceProperty("prepStmtCacheSize", "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+        config.addDataSourceProperty("useServerPrepStmts", "true");
+
+        dataSource = new HikariDataSource(config);
     }
 
-    // ===== ICycleRepository Implementation =====
-    @Override
-    public Cycle getCurrentCycle() throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("SELECT * FROM Cycle WHERE active = 1");
-
-        Cycle cycle = null;
-        if (rs.next()) {
-            int id = rs.getInt("id");
-            LocalDate startDate = rs.getDate("startDate").toLocalDate();
-            LocalDate endDate = rs.getDate("endDate").toLocalDate();
-            boolean active = rs.getBoolean("active");
-            double totalBudget = rs.getDouble("totalBudget");
-            cycle = new Cycle(id, startDate, endDate, active, totalBudget);
-        }
-
-        rs.close();
-        sttm.close();
-        conn.close();
-        return cycle;
+    // لا نحتاج connect() قديم بعد كده
+    private Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
     }
 
+    // ====================== ICycleRepository ======================
+
     @Override
-    public void insertCycle(Cycle cycle) throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
+    public Cycle getCurrentCycle() throws SQLException {
+        String sql = "SELECT * FROM Cycle WHERE active = 1";
 
-        // Deactivate any existing active cycle
-        sttm.execute("UPDATE Cycle SET active = 0 WHERE active = 1");
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
 
-        // Insert new cycle
-        sttm.execute("INSERT INTO Cycle (startDate, endDate, active, totalBudget) VALUES ('"
-                + cycle.getStartDate() + "', '"
-                + cycle.getEndDate() + "', 1, "
-                + cycle.getTotalBudget() + ")");
-
-        System.out.println("Cycle inserted successfully!");
-        sttm.close();
-        conn.close();
+            if (rs.next()) {
+                return new Cycle(
+                    rs.getInt("id"),
+                    rs.getDate("startDate").toLocalDate(),
+                    rs.getDate("endDate").toLocalDate(),
+                    rs.getBoolean("active"),
+                    rs.getDouble("totalBudget")
+                );
+            }
+            return null;
+        }
     }
 
     @Override
-    public double getTotalBudgetForCycle(Cycle cycle) throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("SELECT totalBudget FROM Cycle WHERE id = " + cycle.getId());
+    public void insertCycle(Cycle cycle) throws SQLException {
+        String deactivateSql = "UPDATE Cycle SET active = 0 WHERE active = 1";
+        String insertSql = "INSERT INTO Cycle (startDate, endDate, active, totalBudget) VALUES (?, ?, 1, ?)";
 
-        double totalBudget = 0;
-        if (rs.next()) {
-            totalBudget = rs.getDouble("totalBudget");
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement ps1 = conn.prepareStatement(deactivateSql);
+                 PreparedStatement ps2 = conn.prepareStatement(insertSql)) {
+
+                ps1.executeUpdate();
+
+                ps2.setDate(1, Date.valueOf(cycle.getStartDate()));
+                ps2.setDate(2, Date.valueOf(cycle.getEndDate()));
+                ps2.setDouble(3, cycle.getTotalBudget());
+                ps2.executeUpdate();
+            }
+
+            conn.commit();
         }
-
-        rs.close();
-        sttm.close();
-        conn.close();
-        return totalBudget;
-    }
-
-    // ===== ITransactionRepository Implementation =====
-    @Override
-    public void saveTransaction(int cycleId, int categoryId, double amount) throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        sttm.execute("INSERT INTO Transactions (amount, date, category_id, cycle_id) VALUES ("
-                + amount + ", '" + LocalDate.now() + "', " + categoryId + ", " + cycleId + ")");
-
-        System.out.println("Transaction saved: $" + amount);
-        sttm.close();
-        conn.close();
     }
 
     @Override
-    public List<Transaction> getTransactionsByCategory(int categoryId) throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery(
-                "SELECT * FROM Transactions WHERE category_id = " + categoryId);
+    public double getTotalBudgetForCycle(Cycle cycle) throws SQLException {
+        String sql = "SELECT totalBudget FROM Cycle WHERE id = ?";
 
-        List<Transaction> transactionList = new ArrayList<>();
-        while (rs.next()) {
-            int id = rs.getInt("id");
-            double amount = rs.getDouble("amount");
-            LocalDate date = rs.getDate("date").toLocalDate();
-            transactionList.add(new Transaction(id, amount, date.toString()));
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, cycle.getId());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getDouble("totalBudget") : 0.0;
+            }
         }
+    }
 
-        rs.close();
-        sttm.close();
-        conn.close();
-        return transactionList;
+    // ====================== ITransactionRepository ======================
+
+    @Override
+    public void saveTransaction(int cycleId, int categoryId, double amount) throws SQLException {
+        String sql = "INSERT INTO Transactions (amount, date, category_id, cycle_id) VALUES (?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setDouble(1, amount);
+            ps.setDate(2, Date.valueOf(LocalDate.now()));
+            ps.setInt(3, categoryId);
+            ps.setInt(4, cycleId);
+            ps.executeUpdate();
+        }
     }
 
     @Override
-    public List<Transaction> getAllTransactions() throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("SELECT * FROM Transactions");
+    public List<Transaction> getTransactionsByCategory(int categoryId) throws SQLException {
+        String sql = "SELECT * FROM Transactions WHERE category_id = ?";
+        List<Transaction> transactions = new ArrayList<>();
 
-        List<Transaction> transactionList = new ArrayList<>();
-        while (rs.next()) {
-            int id = rs.getInt("id");
-            double amount = rs.getDouble("amount");
-            LocalDate date = rs.getDate("date").toLocalDate();
-            transactionList.add(new Transaction(id, amount, date.toString()));
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, categoryId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    transactions.add(new Transaction(
+                        rs.getInt("id"),
+                        rs.getDouble("amount"),
+                        rs.getDate("date").toString()
+                    ));
+                }
+            }
         }
-
-        rs.close();
-        sttm.close();
-        conn.close();
-        return transactionList;
-    }
-
-    // ===== ICategoryRepository Implementation =====
-    @Override
-    public void insertCategory(String name) throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        sttm.execute("INSERT INTO Category (name) VALUES ('" + name + "')");
-
-        System.out.println("Category added: " + name);
-        sttm.close();
-        conn.close();
+        return transactions;
     }
 
     @Override
-    public List<Category> getAllCategories() throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("SELECT * FROM Category");
+    public List<Transaction> getAllTransactions() throws SQLException {
+        String sql = "SELECT * FROM Transactions";
+        List<Transaction> transactions = new ArrayList<>();
 
-        List<Category> categoryList = new ArrayList<>();
-        while (rs.next()) {
-            int id = rs.getInt("id");
-            String name = rs.getString("name");
-            categoryList.add(new Category(name, id));
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                transactions.add(new Transaction(
+                    rs.getInt("id"),
+                    rs.getDouble("amount"),
+                    rs.getDate("date").toString()
+                ));
+            }
         }
+        return transactions;
+    }
 
-        rs.close();
-        sttm.close();
-        conn.close();
-        return categoryList;
+    // ====================== ICategoryRepository ======================
+
+    @Override
+    public void insertCategory(String name) throws SQLException {
+        String sql = "INSERT INTO Category (name) VALUES (?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, name);
+            ps.executeUpdate();
+        }
     }
 
     @Override
-    public Category getCategoryById(int id) throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("SELECT * FROM Category WHERE id = " + id);
+    public List<Category> getAllCategories() throws SQLException {
+        String sql = "SELECT * FROM Category";
+        List<Category> categories = new ArrayList<>();
 
-        Category category = null;
-        if (rs.next()) {
-            category = new Category(rs.getString("name"), rs.getInt("id"));
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                categories.add(new Category(
+                    rs.getString("name"),
+                    rs.getInt("id")
+                ));
+            }
         }
-
-        rs.close();
-        sttm.close();
-        conn.close();
-        return category;
+        return categories;
     }
 
-    // ===== Helper/Debug Methods =====
-    public void displayAllCycles() throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("SELECT * FROM Cycle");
+    @Override
+    public Category getCategoryById(int id) throws SQLException {
+        String sql = "SELECT * FROM Category WHERE id = ?";
 
-        System.out.println("\n--- All Cycles ---");
-        while (rs.next()) {
-            System.out.println("Cycle " + rs.getInt("id") + ": "
-                    + rs.getDate("startDate") + " to " + rs.getDate("endDate")
-                    + ", Active: " + rs.getBoolean("active")
-                    + ", Budget: $" + rs.getDouble("totalBudget"));
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new Category(rs.getString("name"), rs.getInt("id"));
+                }
+            }
         }
-
-        rs.close();
-        sttm.close();
-        conn.close();
+        return null;
     }
 
-    public void displayAllTransactions() throws Exception {
-        Connection conn = connect();
-        Statement sttm = conn.createStatement();
-        ResultSet rs = sttm.executeQuery("SELECT * FROM Transactions");
-
-        System.out.println("\n--- All Transactions ---");
-        while (rs.next()) {
-            System.out.println("Transaction " + rs.getInt("id")
-                    + ": $" + rs.getDouble("amount")
-                    + " on " + rs.getDate("date"));
+    public static void shutdown() {
+        if (dataSource != null && !dataSource.isClosed()) {
+            dataSource.close();
         }
-
-        rs.close();
-        sttm.close();
-        conn.close();
     }
 }
