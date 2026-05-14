@@ -13,7 +13,6 @@ public class MainGUI extends Application {
 
     private CycleUI cycleUI;
     private ExpenseUI expenseUI;
-    private ChartsUI chartsUI;
 
     private CycleController cycleController;
     private ExpenseController expenseController;
@@ -43,7 +42,6 @@ public class MainGUI extends Application {
 
             cycleUI = new CycleUI(cycleController);
             expenseUI = new ExpenseUI(expenseController);
-            chartsUI = new ChartsUI(expenseController, cycleController);
 
             // ================= LAYOUT =================
             VBox sidebar = buildSidebar(stage);
@@ -164,7 +162,6 @@ public class MainGUI extends Application {
         Button btnLimit   = sidebarBtn("📊", "Daily Spending Limit");
         Button btnExpense = sidebarBtn("➕", "Add Expense");
         Button btnReport  = sidebarBtn("📁", "Transactions by Category");
-        Button btnCharts  = sidebarBtn("📈", "Charts & Analytics");
 
         Separator sep2 = styledSeparator();
 
@@ -186,7 +183,6 @@ public class MainGUI extends Application {
             catch (Exception ex) { showAlert("Error", ex.getMessage()); }
         });
 
-        btnCharts.setOnAction(e -> chartsUI.showChartsDialog());
 
         btnExit.setOnAction(e -> stage.close());
 
@@ -195,7 +191,7 @@ public class MainGUI extends Application {
 
         VBox sidebar = new VBox(5,
             logoBox, sep1,
-            btnCycle, btnLimit, btnExpense, btnReport, btnCharts,
+            btnCycle, btnLimit, btnExpense, btnReport,
             sep2, spacer, btnExit
         );
 

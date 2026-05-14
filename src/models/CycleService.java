@@ -1,31 +1,70 @@
+
+
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
 public class CycleService {
-    private final ICycleRepository cycleRepository;
-    
-    public CycleService(ICycleRepository cycleRepository) {
+
+    private final CycleRepository cycleRepository;
+
+    public CycleService(CycleRepository cycleRepository) {
         this.cycleRepository = cycleRepository;
     }
-    
-    public double calculateDailyLimit(Cycle cycle) {
-        return cycle.calculateDailyLimit();
+
+    public Cycle createCycle(double budget, LocalDate start, LocalDate end) throws Exception {
+        validateBudget(budget);
+        validateDates(start, end);
+
+        cycleRepository.deactivateAll();
+
+        Cycle cycle = new Cycle(0, budget, start, end, true, 0);
+        cycleRepository.save(cycle);
+        return cycle;
     }
-    
-    public double calculateRemainingBudget(Cycle cycle) throws Exception {
-        return cycle.getTotalBudget() - (cycle.calculateDailyLimit() * 
-               (cycle.getTotalDays() - cycle.getDaysRemaining()));
+
+    public void updateCycle(Cycle cycle) throws Exception {
+        validateBudget(cycle.getTotalBudget());
+        validateDates(cycle.getStartDate(), cycle.getEndDate());
+        cycleRepository.update(cycle);
     }
-    
-    public double calculateDailyRemaining(Cycle cycle) throws Exception {
-        if (cycle.getDaysRemaining() <= 0) return 0;
-        double remainingBudget = calculateRemainingBudget(cycle);
-        return remainingBudget / cycle.getDaysRemaining();
+
+    public void deleteCycle(int id) throws Exception {
+        cycleRepository.delete(id);
     }
-    
-    public boolean validateBudget(double budget) {
-        return budget > 0;
+
+    public Optional<Cycle> getActiveCycle() throws Exception {
+        return cycleRepository.findActive();
     }
-    
-    public boolean validateDates(LocalDate start, LocalDate end) {
-        return end.isAfter(start);
+
+    public List<Cycle> getAllCycles() throws Exception {
+        return cycleRepository.findAll();
+    }
+
+    public void activateCycle(int id) throws Exception {
+        Optional<Cycle> cycleOpt = cycleRepository.findById(id);
+        if (cycleOpt.isPresent()) {
+            cycleRepository.deactivateAll();
+            Cycle cycle = cycleOpt.get();
+            cycle.setActive(true);
+            cycleRepository.update(cycle);
+        }
+    }
+
+    public double calculateDailyBudget(Cycle cycle, double totalSpent) {
+        long remaining = cycle.getRemainingDays();
+        if (remaining <= 0) return 0;
+        double remainingBudget = cycle.calculateRemaining(totalSpent);
+        return remainingBudget / remaining;
+    }
+
+    private void validateBudget(double budget) {
+        if (budget <= 0) throw new IllegalArgumentException("Budget must be a positive number.");
+    }
+
+    private void validateDates(LocalDate start, LocalDate end) {
+        if (start == null || end == null) throw new IllegalArgumentException("Dates cannot be null.");
+        if (!end.isAfter(start)) throw new IllegalArgumentException("End date must be after start date.");
+        if (start.isBefore(LocalDate.now().minusDays(1))) throw new IllegalArgumentException("Start date cannot be in the past.");
     }
 }
