@@ -33,25 +33,21 @@ It replaces the classic notebook-and-pen method with a smarter, faster digital a
 
 ## Screenshots
 
-> *(Coming soon — UI in progress)*
+> <img width="1080" height="554" alt="image" src="https://github.com/user-attachments/assets/be6ad932-1629-4fc6-8e76-60d0c097ba83" />
+
 
 ---
 
 ## Tech Stack
 
 - **Architecture:** MVC (Model-View-Controller)
-- **Database:** SQLite (local, on-device)
+- **Database:** MySQl (railway on-server)
 - **Currency:** EGP (Egyptian Pound)
 - **Platform:** Desktop (cross-platform)
 
 ---
 
-## Getting Started
 
-### Prerequisites
-
-- Node.js `v18+` (or your runtime of choice — to be confirmed)
-- SQLite3
 
 ### Installation
 
@@ -61,11 +57,8 @@ git clone https://github.com/your-org/masroofy.git
 cd masroofy
 
 # Install dependencies
-npm install
+Java fx
 
-# Run the app
-npm start
-```
 
 ---
 
